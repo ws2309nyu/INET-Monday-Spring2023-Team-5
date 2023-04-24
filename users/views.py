@@ -1,215 +1,155 @@
 from django.shortcuts import render
-from django.http import HttpResponseRedirect
-from django.contrib import messages
-
 from django.urls import reverse
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.http import HttpResponseRedirect, HttpResponsePermanentRedirect
+from django.views.decorators.cache import never_cache
 
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 
-from .models import Business
+
+@login_required(redirect_field_name="/")
+def user_account(request):
+    context = {"page": "account"}
+    context["firstname"] = request.user.first_name
+    return render(request, "users/index.html", context)
 
 
-def index_view(request):
-    if not request.user.is_authenticated:
-        return HttpResponseRedirect(reverse('login'))
-    
-    return render(request, 'users/index.html', {
-        'welcome': 'Welcome {}!'.format(request.user.first_name),
-        'message': 'Welcome, {}'.format(request.user.first_name)
-        }
-)
+@never_cache
+def account_register(request):
+    if request.user.is_authenticated:
+        return HttpResponsePermanentRedirect("/")
 
-
-def login_view(request):
-    if request.method == 'POST':
-        email = request.POST['email']
-        password = request.POST['password']
-        user = authenticate(request, username=email, password=password)
-
-        if user is not None:
-            login(request, user)
-            return HttpResponseRedirect(reverse('index'))
-        else:
-            return render(request, 'users/login.html', {
-                'message': 'Invalid credentials.'
-            })
-        
-    return render(request, 'users/login.html', {
-        'message': 'Please log in.'
-    })
-
-
-def register_view(request):
-    if request.method == 'POST':
-        email = request.POST['email']
-        password1 = request.POST['password1']
-        password2 = request.POST['password2']
+    if request.method == "POST":
+        email = request.POST["email"]
+        password1 = request.POST["password1"]
+        password2 = request.POST["password2"]
 
         if password1 != password2:
-            return render(request, 'users/register.html', {
-                'message': 'Passwords must match.'
-            })
-        
+            context = {"message": "Passwords must match.", "page": "register"}
+            return render(request, "users/account_register.html", context)
+
         if User.objects.filter(email=email).exists():
-            return render(request, 'users/register.html', {
-                'message': 'Email already exists.'
-            })
-        
+            context = {"message": "Email already exists.", "page": "register"}
+            return render(request, "users/account_register.html", context)
+
         user = User.objects.create_user(
             email=email,
             password=password1,
-            first_name=request.POST['first_name'],
-            last_name=request.POST['last_name'],
+            first_name=request.POST["first_name"],
+            last_name=request.POST["last_name"],
             username=email,
         )
         user = authenticate(request, username=email, password=password1)
 
         login(request, user)
-        return HttpResponseRedirect(reverse('index'))
-    
-    return render(request, 'users/register.html', {
-        'message': 'Please register.'
-    })
+        return HttpResponseRedirect(reverse("user_account"))
+
+    context = {"page": "register"}
+    return render(request, "users/account_register.html", context)
 
 
-def logout_view(request):
-    if not request.user.is_authenticated:
-        return HttpResponseRedirect(reverse('login'))
-    
+@never_cache
+def account_login(request):
+    if request.user.is_authenticated:
+        return HttpResponsePermanentRedirect("/")
+
+    if request.method == "POST":
+        email = request.POST["email"]
+        password = request.POST["password"]
+        user = authenticate(request, username=email, password=password)
+
+        if user:
+            login(request, user)
+            return HttpResponseRedirect(reverse("user_account"))
+
+        context = {"message": "Invalid credentials.", "page": "login"}
+        return render(request, "users/account_login.html", context)
+
+    context = {"page": "login"}
+    return render(request, "users/account_login.html", context)
+
+
+def account_logout(request):
     logout(request)
 
-    return render(request, 'users/logout.html', {
-        'message': 'LOGGED OUT!'
-    })
+    context = {"message": "You have been logged out.", "page": "logout"}
+    return render(request, "users/account_logout.html", context)
 
 
-def add_business_view(request):
-    if not request.user.is_authenticated:
-        return HttpResponseRedirect(reverse('login'))
-    
-    if request.method == 'POST':
-        business = Business(
-            name=request.POST['name'],
-            address=request.POST['address'],
-            email=request.POST['email'],
-            phone=request.POST['phone'],
-            owner=request.user,
-        )
-        business.save()
-        
-        return HttpResponseRedirect(reverse('view_business', args=(business.id,)))
-    
-    return render(request, 'users/add_business.html', {
-        'message': 'Add your business.'
-    })
+def account_delete(request):
+    if request.method == "POST":
+        password = request.POST["password"]
+        user = User.objects.get(pk=request.user.pk)
 
-def view_business_view(request, business_id):
-    if not request.user.is_authenticated:
-        return HttpResponseRedirect(reverse('login'))
-    
-    business = Business.objects.get(id=business_id)
-    
-    return render(request, 'users/view_business.html', {
-        'message': 'View your business.',
-        'business': business,
-    })
+        if user.check_password(password):
+            user.delete()
+
+            context = {"message": "Account Deleted", "page": "account-delete"}
+            context["firstname"] = request.user.first_name
+            return HttpResponseRedirect(reverse("account_register"))
+
+        context = {
+            "message": "Wrong password",
+            "page": "account-delete",
+        }
+        context["firstname"] = request.user.first_name
+        return render(request, "users/account_delete.html", context)
+
+    context = {
+        "page": "account-delete",
+    }
+    context["firstname"] = request.user.first_name
+    return render(request, "users/account_delete.html", context)
 
 
-def updateuser (request):
-    if not request.user.is_authenticated:
-        messages.error(request, "You are not authorized to view this page!")
-        return HttpResponseRedirect(reverse("login"))
-    else:
-        if request.method =="POST":
-            user=User.objects.get(pk=request.user.pk)
-            email=request.POST["email"]
-            #Check if the new email is used by any other users or not
-            if  user.email != email and User.objects.filter(email=email).exists():
-                return render(request, 'users/updateuser.html', {
-                'message': 'Email already exists.'
-            })
-            
-            user.username=request.POST["email"]
-            user.email=request.POST["email"]
-            user.first_name=request.POST["first_name"]          
-            user.last_name=request.POST["last_name"]
-            user.save()
-            messages.success(request,"Profile Updated Successfuly.")
-            return HttpResponseRedirect(reverse("index"))          
+def update_account(request):
+    if request.method == "POST":
+        user = User.objects.get(pk=request.user.pk)
+        email = request.POST["email"]
+
+        if user.email != email and User.objects.filter(email=email).exists():
+            messages.error(request, "Email already exists.")
         else:
-            return render(request,"users/updateuser.html",{
-            "user":User.objects.get(pk=request.user.pk)
-        })
+            user.username = email
+            user.email = email
+            user.first_name = request.POST["first_name"]
+            user.last_name = request.POST["last_name"]
+            user.save()
 
+            messages.success(request, "Profile Updated Successfully.")
+            return HttpResponseRedirect(reverse("user_account"))
 
-
-
+    context = {
+        "user": request.user,
+        "page": "account-edit",
+    }
+    context["firstname"] = request.user.first_name
+    return render(request, "users/update_account.html", context)
 
 
 def update_password(request):
-    if not request.user.is_authenticated:
-        return HttpResponseRedirect(reverse("login"))
-    else:
-        if request.method=="POST":
-            current_password =request.POST["current_password"]
-            username = request.user.username
-            password1 = request.POST['password1']
-            password2 = request.POST['password2']
-            if password1 != password2:
-                return render(request, 'users/update_password.html', {
-                'message': 'Passwords must match.'
-            })
+    if request.method == "POST":
+        current_password = request.POST["current_password"]
+        password1 = request.POST["password1"]
+        password2 = request.POST["password2"]
 
-            u = User.objects.get(pk=request.user.pk)
-            if u.check_password(current_password):
-                u.set_password(password1)
-                u.save()
-                login(request,u)
-            else :
-                 return render(request, 'users/update_password.html', {
-                'message': 'Wrong password'
-            })
-
-
-            return render(request, "users/updateuser.html",{
-                'message': "Password Updated Successfuly"
-            })
-
+        if password1 != password2:
+            messages.error(request, "Passwords must match.")
         else:
-            return render(request, "users/update_password.html")
+            user = User.objects.get(pk=request.user.pk)
+            if user.check_password(current_password):
+                user.set_password(password1)
+                user.save()
+                login(request, user)
+                messages.success(request, "Password Updated Successfully.")
+                return HttpResponseRedirect(reverse("user_account"))
+            else:
+                messages.error(request, "Wrong password")
 
-
-
-
-def delete_user (request):
-    if not request.user.is_authenticated:
-        return HttpResponseRedirect(reverse("login"))
-
-    if request. method=="POST":
-        password=request.POST["password"]
-        u = User.objects.get(pk=request.user.pk)
-        if u.check_password(password):
-            u.delete()
-            return render(request, 'users/logout.html', {
-                'message': 'Account Deleted'
-            }) 
-        else:
-            return render(request, 'users/delete_user.html', {
-                'message': 'Wrong password'
-            }) 
-
-    else:
-        return render(request,"users/delete_user.html")
-
-
-
-
-def view_all_businesses_view(request):
-
-    businesses = Business.objects.all()
-
-    return render(request, 'users/view_all_businesses.html', {
-        'businesses': businesses,
-    })
-
+    context = {
+        "page": "account-update-password",
+    }
+    context["firstname"] = request.user.first_name
+    return render(request, "users/update_password.html", context)

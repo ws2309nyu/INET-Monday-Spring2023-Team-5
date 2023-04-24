@@ -11,10 +11,23 @@
 
     <title>BAM</title>
 
-    <link rel="icon" href="./favicon.ico" />
-    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    {% load static %}
 
-    {% load static %} {% load compress %} {% compress css %}
+    <link rel="icon" href="{% static 'favicon/favicon.ico' %}" />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="16x16"
+      href="{% static 'favicon/favicon-16x16.png' %}"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="{% static 'favicon/favicon-32x32.png' %}"
+    />
+
+    {% load compress %} {% compress css %}
 
     <link
       type="text/x-scss"
@@ -44,14 +57,34 @@
       media="screen"
     />
 
+    <link
+      type="text/x-scss"
+      href="{% static 'services/services.scss' %}"
+      rel="stylesheet"
+      media="screen"
+    />
+
+    <link
+      type="text/x-scss"
+      href="{% static 'neighborhoods/neighborhoods.scss' %}"
+      rel="stylesheet"
+      media="screen"
+    />
+
     {% endcompress %}
+
     <script src="{% static 'js/jquery-3.6.3.min.js' %}"></script>
     <script src="{% static 'js/bootstrap.js' %}"></script>
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js"></script>
+    <link
+      href="https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css"
+      rel="stylesheet"
+    />
 
     {% load bootstrap_icons %}
   </head>
   <body>
-    <div class="page-container">
+    <div class="page-container {{page}}">
       <div id="header">
         <nav class="navbar navbar-expand-lg">
           <a class="navbar-brand" href="/">BAM</a>
@@ -70,14 +103,32 @@
           </button>
           <div class="collapse navbar-collapse" id="mobileNavbar">
             <ul class="navbar-nav ml-auto">
-              <li class="nav-item">
-                <a class="nav-link" href="#"> Neighborhoods </a>
+              <li class="nav-item mobile">
+                {% if user.is_authenticated %}
+                <p>Welcome {{firstname}}!</p>
+                <a class="nav-link" href="/accounts">
+                  {% bs_icon 'person-badge' size='1rem' %} My Account
+                </a>
+                <a class="nav-link" href="{% url 'marketplace' %}">
+                  {% bs_icon 'shop' size='1rem' %} Marketplace
+                </a>
+                <a class="nav-link" href="{% url 'account_logout' %}">
+                  {% bs_icon 'box-arrow-right' size='1rem' %} Log Out
+                </a>
+                {% else %}
+                <p>HI GUEST!</p>
+                <a class="nav-link" href="{% url 'account_register' %}"> Sign Up </a>
+                <a class="nav-link" href="{% url 'account_login' %}"> Log In </a>
+                {% endif %}
+                <hr />
               </li>
               <li class="nav-item">
-                <a class="nav-link" href="{% url 'view_all_businesses' %}"> Services </a>
-
+                <a class="nav-link" href="/neighborhoods"> Neighborhoods </a>
               </li>
-              <li class="nav-item dropdown">
+              <li class="nav-item">
+                <a class="nav-link" href="{% url 'services' %}"> Services </a>
+              </li>
+              <li class="nav-item dropdown desktop">
                 <a
                   class="nav-link dropdown-toggle"
                   id="mobileNavbarDropdown"
@@ -91,15 +142,23 @@
                   class="dropdown-menu dropdown-menu-right"
                   aria-labelledby="mobileNavbarDropdown"
                 >
-                  {% if user.is_authenticated %} 
-                  <p>{{welcome}}</p>
-                  <a class="dropdown-item" href="/users">My Account</a>
-                  <a class="dropdown-item" href="{% url 'logout' %}">Log Out</a>
+                  {% if user.is_authenticated %}
+                  <p>Welcome {{firstname}}!</p>
+                  <a class="dropdown-item" href="/accounts">
+                    {% bs_icon 'person-badge' size='1rem' %} My Account
+                  </a>
+                  <a class="dropdown-item" href="{% url 'marketplace' %}">
+                    {% bs_icon 'shop' size='1rem' %} Marketplace
+                  </a>
+                  <a class="dropdown-item" href="{% url 'account_logout' %}">
+                    {% bs_icon 'box-arrow-right' size='1rem' %} Log Out
+                  </a>
                   {% else %}
-                  <a class="dropdown-item" href="{% url 'register' %}"
-                    >Sign Up</a
-                  >
-                  <a class="dropdown-item" href="{% url 'login' %}">Log In</a>
+                  <p>HI GUEST!</p>
+                  <a class="dropdown-item" href="{% url 'account_register' %}">
+                    Sign Up
+                  </a>
+                  <a class="dropdown-item" href="{% url 'account_login' %}">Log In</a>
                   {% endif %}
                 </div>
               </li>
