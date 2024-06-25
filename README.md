@@ -61,6 +61,6 @@ $ poetry shell
 # Team 5
 1. [Elfarouk Saleh](https://github.com/AlfaroukSaleh)
 2. [Chenyu Gu](https://github.com/moringspeaker)
-3. [Weiye Sun](https://github.com/ws2309nyu)
+3. [Weiye Sun](https://github.com/Sunorous)
 4. [Stephanie Hou](https://github.com/StephanieHou)
 5. [Venu Vardhan Reddy Tekula](https://github.com/vchrombie)
